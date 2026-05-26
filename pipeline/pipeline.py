@@ -178,6 +178,7 @@ def _safe_str(val: Any) -> str:
 async def run_pipeline(
     input_file: Path = INPUT_FILE,
     poc_limit: int = POC_ROW_LIMIT,
+    output_file: Path | None = None,
 ) -> Path:
     """
     Full async pipeline. Returns path to the output workbook.
@@ -287,10 +288,12 @@ async def run_pipeline(
         ) / max(len(enriched_records), 1)
     )
 
+    effective_output = output_file or OUTPUT_FILE
+
     stats = {
         "Run Date": datetime.date.today().strftime("%d %b %Y"),
         "Input File": str(input_file.name),
-        "Output File": str(OUTPUT_FILE.name),
+        "Output File": str(effective_output.name),
         "Total Rows Processed": total,
         "Goodreads Matched": matched,
         "Failed / No Match": failed_count,
@@ -306,6 +309,7 @@ async def run_pipeline(
         audit_records=audit_records,
         failed_df=failed_df,
         stats=stats,
+        output_path=effective_output,
     )
 
     return output_path
@@ -319,10 +323,22 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Goodreads Enrichment Pipeline (POC)")
-    parser.add_argument("--input", type=Path, default=INPUT_FILE, help="Input Excel file")
+    parser.add_argument("--input", type=Path, default=INPUT_FILE,
+                        help="Path to input Excel file (default: sample_input.xlsx)")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="Path for output Excel file (default: auto-named next to input)")
     parser.add_argument("--limit", type=int, default=POC_ROW_LIMIT,
-                        help="Max rows to process (0=all). Default=20 for POC.")
+                        help="Max rows to process (0=all, default=20 for POC)")
     args = parser.parse_args()
 
-    output = asyncio.run(run_pipeline(input_file=args.input, poc_limit=args.limit))
+    # If --output not given, auto-name next to the input file
+    output_path: Path | None = args.output
+    if output_path is None and args.input != INPUT_FILE:
+        import datetime
+        today = datetime.date.today().strftime("%y%m%d")
+        output_path = args.input.parent / f"{today} UK CMT Funnel Enriched - vPOC_1.xlsx"
+
+    output = asyncio.run(
+        run_pipeline(input_file=args.input, poc_limit=args.limit, output_file=output_path)
+    )
     print(f"\nDone. Output: {output}")
