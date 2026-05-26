@@ -6,9 +6,15 @@ rate-limiting, formatting specs. Edit here to tune behaviour.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
+
+# Auto-load .env from the pipeline directory (if present)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass  # python-dotenv optional; fall back to env vars
 
 # ---------------------------------------------------------------------------
 # Paths
